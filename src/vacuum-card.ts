@@ -70,27 +70,73 @@ export class VacuumCard extends LitElement {
     return document.createElement('eufy-s1-vacuum-card-editor');
   }
 
-  static getStubConfig(_: unknown, entities: string[]) {
-    const [vacuumEntity] = entities.filter((eid) => eid.startsWith('vacuum'));
+  static getStubConfig(hass?: HomeAssistant, entities: string[] = []) {
+    const entityIds =
+      entities.length > 0 ? entities : Object.keys(hass?.states ?? {});
+    const vacuumEntity = entityIds.find((eid) => eid.startsWith('vacuum.'));
+    const entity = vacuumEntity ?? 'vacuum.eufy_s1';
+    const slug = entity.split('.')[1] ?? 'eufy_s1';
 
     return {
-      entity: vacuumEntity ?? '',
+      entity,
+      battery_entity: `sensor.${slug}_battery`,
     };
   }
 
   get entity(): VacuumEntity {
-    return this.hass.states[this.config.entity] as VacuumEntity;
+    if (!this.hass || !this.config?.entity) {
+      return null as unknown as VacuumEntity;
+    }
+
+    const entity = this.hass.states[this.config.entity] as
+      | VacuumEntity
+      | undefined;
+
+    if (entity) {
+      return entity;
+    }
+
+    if (this.isEditorPreview()) {
+      return this.previewEntity;
+    }
+
+    return null as unknown as VacuumEntity;
+  }
+
+  private get previewEntity(): VacuumEntity {
+    const entityId = this.config?.entity || 'vacuum.eufy_s1';
+
+    return {
+      entity_id: entityId,
+      state: 'docked',
+      attributes: {
+        friendly_name: 'Eufy S1',
+        status: 'docked',
+        fan_speed: 'Quiet',
+        fan_speed_list: ['Quiet', 'Standard', 'Turbo'],
+        battery_level: 100,
+        battery_icon: 'mdi:battery',
+      },
+      context: {
+        id: 'preview',
+        parent_id: null,
+        user_id: null,
+      },
+      last_changed: new Date().toISOString(),
+      last_reported: new Date().toISOString(),
+      last_updated: new Date().toISOString(),
+    } as VacuumEntity;
   }
 
   get map(): HassEntity | null {
-    if (!this.hass || !this.config.map) {
+    if (!this.hass || !this.config?.map) {
       return null;
     }
     return this.hass.states[this.config.map];
   }
 
   get batteryEntity(): VacuumBatteryEntity | null {
-    const batteryEntityId = this.config.battery_entity;
+    const batteryEntityId = this.config?.battery_entity;
     if (!this.hass || !batteryEntityId) {
       return null;
     }
@@ -121,10 +167,13 @@ export class VacuumCard extends LitElement {
   }
 
   protected updated(changedProps: PropertyValues) {
+    const oldHass = changedProps.get('hass') as HomeAssistant | undefined;
+    const entityId = this.config?.entity;
+
     if (
-      changedProps.get('hass') &&
-      changedProps.get('hass').states[this.config.entity].state !==
-        this.hass.states[this.config.entity].state
+      oldHass &&
+      entityId &&
+      oldHass.states[entityId]?.state !== this.hass.states[entityId]?.state
     ) {
       this.requestInProgress = false;
     }
@@ -132,7 +181,7 @@ export class VacuumCard extends LitElement {
 
   public connectedCallback() {
     super.connectedCallback();
-    if (!this.config.compact_view && this.map) {
+    if (!this.config?.compact_view && this.map) {
       this.requestUpdate();
       this.thumbUpdater = setInterval(
         () => this.requestUpdate(),
@@ -382,9 +431,8 @@ export class VacuumCard extends LitElement {
             icon: select.icon ?? stateIcon(entity) ?? 'mdi:form-dropdown',
             value: entity.state,
             options: entity.attributes.options as string[],
-            onSelect: (
-              event: CustomEvent<{ item?: { value?: string } }>,
-            ) => this.handleSettingSelect(entity.entity_id, event),
+            onSelect: (event: CustomEvent<{ item?: { value?: string } }>) =>
+              this.handleSettingSelect(entity.entity_id, event),
             formatLabel: (value: string) =>
               this.formatHeaderSelectLabel(value, select.name),
             ariaLabel: select.name ?? entity.attributes.friendly_name,
@@ -480,21 +528,21 @@ export class VacuumCard extends LitElement {
 
       return [
         html`
-        <button
-          class="header-stat"
-          @click=${() => stat.entity_id && this.handleMore(stat.entity_id)}
-        >
-          <ha-icon icon="${stat.icon ?? 'mdi:information-outline'}"></ha-icon>
-          <span class="header-stat-value">
-            ${this.renderStatValue(stat, value)}${stat.unit
-              ? ` ${stat.unit}`
-              : ''}
-          </span>
-          ${stat.subtitle
-            ? html`<span class="header-stat-label">${stat.subtitle}</span>`
-            : nothing}
-        </button>
-      `,
+          <button
+            class="header-stat"
+            @click=${() => stat.entity_id && this.handleMore(stat.entity_id)}
+          >
+            <ha-icon icon="${stat.icon ?? 'mdi:information-outline'}"></ha-icon>
+            <span class="header-stat-value">
+              ${this.renderStatValue(stat, value)}${stat.unit
+                ? ` ${stat.unit}`
+                : ''}
+            </span>
+            ${stat.subtitle
+              ? html`<span class="header-stat-label">${stat.subtitle}</span>`
+              : nothing}
+          </button>
+        `,
       ];
     });
 
@@ -668,7 +716,9 @@ export class VacuumCard extends LitElement {
 
     return html`
       <ha-icon-button class="map-toggle" label="Map" @click="${this.toggleMap}">
-        <ha-icon icon="${this.mapOpen ? 'mdi:map-marker-off' : 'mdi:map-outline'}">
+        <ha-icon
+          icon="${this.mapOpen ? 'mdi:map-marker-off' : 'mdi:map-outline'}"
+        >
         </ha-icon>
       </ha-icon-button>
     `;
@@ -806,7 +856,9 @@ export class VacuumCard extends LitElement {
             </button>
           </div>
           <div class="settings-panel">
-            ${this.config.settings.map((setting) => this.renderSetting(setting))}
+            ${this.config.settings.map((setting) =>
+              this.renderSetting(setting),
+            )}
           </div>
         </section>
       </div>
@@ -814,11 +866,7 @@ export class VacuumCard extends LitElement {
   }
 
   private renderMapPanel(mode: 'drawer' | 'side'): Template {
-    if (
-      !this.mapOpen ||
-      this.config.map_mode !== mode ||
-      !this.hasMap()
-    ) {
+    if (!this.mapOpen || this.config.map_mode !== mode || !this.hasMap()) {
       return nothing;
     }
 
@@ -1137,10 +1185,8 @@ export class VacuumCard extends LitElement {
       <ha-card>
         <div class="preview not-available">
           <div class="metadata">
-            <div class="not-available">
-              ${localize('common.not_available')}
-            </div>
-          <div>
+            <div class="not-available">${localize('common.not_available')}</div>
+          </div>
         </div>
       </ha-card>
     `;
@@ -1164,8 +1210,7 @@ export class VacuumCard extends LitElement {
               </div>
             </div>
             <div class="header-actions">
-              ${this.renderMapToggle()}
-              ${this.renderSettingsToggle()}
+              ${this.renderMapToggle()} ${this.renderSettingsToggle()}
               <ha-icon-button
                 class="more-info"
                 icon="mdi:dots-vertical"
@@ -1195,8 +1240,7 @@ export class VacuumCard extends LitElement {
           </div>
         </div>
 
-        ${this.renderToolbar(this.entity.state)}
-        ${this.renderSettingsDialog()}
+        ${this.renderToolbar(this.entity.state)} ${this.renderSettingsDialog()}
       </ha-card>
     `;
   }
@@ -1204,14 +1248,27 @@ export class VacuumCard extends LitElement {
 
 declare global {
   interface Window {
-    customCards?: unknown[];
+    customCards?: Array<{
+      type?: string;
+      name?: string;
+      description?: string;
+      preview?: boolean;
+      documentationURL?: string;
+    }>;
   }
 }
 
-window.customCards = window.customCards || [];
-window.customCards.push({
+const CARD_PICKER_METADATA = {
   preview: true,
   type: 'eufy-s1-vacuum-card',
   name: 'Eufy S1 Vacuum Card',
-  description: localize('common.description'),
-});
+  description: 'Control and monitor an Eufy S1 robot vacuum.',
+  documentationURL: 'https://github.com/AnielGammaTech/eufy-s1-vacuum-card',
+};
+
+window.customCards = window.customCards || [];
+if (
+  !window.customCards.some((card) => card.type === CARD_PICKER_METADATA.type)
+) {
+  window.customCards.push(CARD_PICKER_METADATA);
+}
