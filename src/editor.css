@@ -1,17 +1,18 @@
 .card-config {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 2px 0 20px;
+  gap: 12px;
+  padding: 0 0 18px;
 }
 
 .editor-section {
   background: color-mix(in srgb, var(--primary-text-color) 4%, transparent);
   border: 1px solid color-mix(in srgb, var(--divider-color) 72%, transparent);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
   padding: 14px;
 }
 
@@ -42,29 +43,24 @@
 .row-fields {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   min-width: 0;
 }
 
 .metric-fields {
-  grid-template-columns: minmax(210px, 1.3fr) minmax(120px, 0.8fr) minmax(
-      72px,
-      0.45fr
-    ) minmax(140px, 0.8fr);
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
 }
 
 .setting-fields {
-  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(
-      140px,
-      0.8fr
-    );
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
 .toolbar-fields {
-  grid-template-columns: minmax(130px, 0.9fr) minmax(150px, 1fr) minmax(
-      140px,
-      0.8fr
-    ) minmax(220px, 1.4fr);
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+}
+
+.toolbar-fields paper-input:last-child {
+  grid-column: 1 / -1;
 }
 
 .single-field {
@@ -90,10 +86,11 @@
 }
 
 .editor-row {
-  align-items: end;
-  border-top: 1px solid color-mix(in srgb, var(--divider-color) 55%, transparent);
+  align-items: start;
+  border-top: 1px solid
+    color-mix(in srgb, var(--divider-color) 55%, transparent);
   display: grid;
-  gap: 10px;
+  gap: 12px;
   grid-template-columns: minmax(0, 1fr) auto;
   padding-top: 12px;
 }
@@ -104,9 +101,13 @@
 
 .row-actions {
   align-items: center;
+  align-self: center;
+  background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--divider-color) 60%, transparent);
+  border-radius: 999px;
   display: flex;
-  gap: 4px;
-  padding-bottom: 4px;
+  gap: 2px;
+  padding: 2px;
 }
 
 .row-actions button,
@@ -126,10 +127,13 @@
 }
 
 .row-actions button {
+  background: transparent;
+  border: 0;
   border-radius: 999px;
-  height: 34px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
-  width: 34px;
+  width: 32px;
 }
 
 .row-actions button:disabled {
@@ -149,8 +153,14 @@
 }
 
 ha-select,
+ha-entity-picker,
 paper-input {
+  min-width: 0;
   width: 100%;
+}
+
+ha-select {
+  --mdc-menu-min-width: 0;
 }
 
 @media (max-width: 720px) {

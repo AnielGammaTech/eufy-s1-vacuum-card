@@ -41,7 +41,15 @@ const DEFAULT_TOOLBAR_BUTTONS: VacuumCardToolbarButton[] = [
     action: 'pause',
     icon: 'mdi:pause',
     name: 'Pause',
-    states: ['cleaning', 'on', 'auto', 'spot', 'edge', 'single_room', 'returning'],
+    states: [
+      'cleaning',
+      'on',
+      'auto',
+      'spot',
+      'edge',
+      'single_room',
+      'returning',
+    ],
   },
   {
     action: 'stop',
@@ -130,17 +138,16 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
       return;
     }
 
-    const value =
-      target.checked !== undefined ? target.checked : target.value;
+    const value = target.checked !== undefined ? target.checked : target.value;
 
     if (value === '') {
       this.updateConfig({}, [target.configValue]);
       return;
     }
 
-    this.updateConfig({ [target.configValue]: value } as Partial<
-      VacuumCardConfig
-    >);
+    this.updateConfig({
+      [target.configValue]: value,
+    } as Partial<VacuumCardConfig>);
   }
 
   private renderSwitch(
@@ -212,10 +219,28 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
     value: string | undefined,
     onChange: (value: string) => void,
     placeholder = 'domain.entity_name',
+    includeDomains?: string[],
   ): Template {
-    return html`
-      ${this.renderTextInput(label, value, onChange, placeholder)}
-    `;
+    if (includeDomains?.length) {
+      return html`
+        <ha-entity-picker
+          .hass=${this.hass}
+          .label=${label}
+          .value=${value ?? ''}
+          .includeDomains=${includeDomains}
+          placeholder=${placeholder}
+          allow-custom-entity
+          @value-changed=${(event: Event) => {
+            const detail = (event as CustomEvent<{ value?: string }>).detail;
+            const target = event.target as HTMLInputElement;
+            onChange(detail?.value ?? target.value ?? '');
+          }}
+          @closed=${(event: Event) => event.stopPropagation()}
+        ></ha-entity-picker>
+      `;
+    }
+
+    return html` ${this.renderTextInput(label, value, onChange, placeholder)} `;
   }
 
   private renderRowActions(
@@ -300,7 +325,8 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
                 ${this.renderEntityInput(
                   'Entity',
                   row.entity_id,
-                  (value) => this.updateHeaderSelect(index, { entity_id: value }),
+                  (value) =>
+                    this.updateHeaderSelect(index, { entity_id: value }),
                   'select.eufy_s1_clean_room',
                 )}
                 ${this.renderTextInput('Label', row.name, (value) =>
@@ -316,7 +342,8 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
               ${this.renderRowActions(
                 index,
                 rows.length,
-                (from, to) => this.setHeaderSelects(this.moveItem(rows, from, to)),
+                (from, to) =>
+                  this.setHeaderSelects(this.moveItem(rows, from, to)),
                 (rowIndex) =>
                   this.setHeaderSelects(rows.filter((_, i) => i !== rowIndex)),
               )}
@@ -354,7 +381,10 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
     this.updateConfig({ header_stats });
   }
 
-  private updateHeaderStat(index: number, patch: Partial<VacuumCardStat>): void {
+  private updateHeaderStat(
+    index: number,
+    patch: Partial<VacuumCardStat>,
+  ): void {
     const rows = [...this.getHeaderStatsForEditor()];
     rows[index] = { ...rows[index], ...patch };
     this.setHeaderStats(rows);
@@ -398,7 +428,8 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
               ${this.renderRowActions(
                 index,
                 rows.length,
-                (from, to) => this.setHeaderStats(this.moveItem(rows, from, to)),
+                (from, to) =>
+                  this.setHeaderStats(this.moveItem(rows, from, to)),
                 (rowIndex) =>
                   this.setHeaderStats(rows.filter((_, i) => i !== rowIndex)),
               )}
@@ -545,6 +576,7 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
               this.config.entity,
               (value) => this.updateConfig({ entity: value }),
               'vacuum.eufy_s1',
+              ['vacuum'],
             )}
             ${this.renderEntityInput(
               localize('editor.battery_entity') ?? 'Battery Entity',
@@ -554,6 +586,7 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
                   ? this.updateConfig({ battery_entity: value })
                   : this.updateConfig({}, ['battery_entity']),
               'sensor.eufy_s1_battery',
+              ['sensor'],
             )}
             ${this.renderEntityInput(
               localize('editor.map') ?? 'Map Camera',
@@ -563,6 +596,7 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
                   ? this.updateConfig({ map: value })
                   : this.updateConfig({}, ['map']),
               'camera.eufy_s1_map',
+              ['camera'],
             )}
             ${this.renderSelectInput(
               'Map Mode',
@@ -611,8 +645,8 @@ export class VacuumCardEditor extends LitElement implements LovelaceCardEditor {
           </div>
         </section>
 
-        ${this.renderToolbarButtonEditor()}
-        ${this.renderHeaderSelectEditor()} ${this.renderHeaderStatEditor()}
+        ${this.renderToolbarButtonEditor()} ${this.renderHeaderSelectEditor()}
+        ${this.renderHeaderStatEditor()}
       </div>
     `;
   }
