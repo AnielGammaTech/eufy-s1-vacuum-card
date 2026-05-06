@@ -23,6 +23,10 @@ export type VacuumEntityState =
 export interface VacuumEntityAttributes extends HassEntityAttributeBase {
   status?: VacuumEntityState;
   state?: VacuumEntityState;
+  task_status?: VacuumEntityState;
+  error_code?: number | string;
+  error_message?: string;
+  status_code?: number | string;
   fan_speed?: string;
   fan_speed_list?: string[];
   battery_level?: number;

@@ -318,11 +318,42 @@ export class VacuumCard extends LitElement {
 
   private getAttributes(entity: VacuumEntity) {
     const { status, state } = entity.attributes;
+    const rawStatus = status ?? state ?? entity.state;
 
     return {
       ...entity.attributes,
-      status: status ?? state ?? entity.state,
+      status: this.isBenignDockedError(entity, rawStatus)
+        ? 'docked'
+        : rawStatus,
     };
+  }
+
+  private isBenignDockedError(
+    entity: VacuumEntity,
+    status: string | undefined,
+  ): boolean {
+    if (String(status ?? '').toLowerCase() !== 'error') {
+      return false;
+    }
+
+    const { error_code, error_message, status_code } = entity.attributes;
+    const hasRealError =
+      Number(error_code ?? 0) !== 0 ||
+      String(error_message ?? '').trim() !== '';
+
+    if (hasRealError) {
+      return false;
+    }
+
+    const slug = entity.entity_id.split('.')[1];
+    const charging = this.hass?.states[`binary_sensor.${slug}_charging`];
+    const dockStatus = this.hass?.states[`sensor.${slug}_dock_status`];
+
+    return (
+      Number(status_code ?? 0) === 2 ||
+      charging?.state === 'on' ||
+      String(dockStatus?.state ?? '').toLowerCase() === 'idle'
+    );
   }
 
   private renderSource(): Template {
